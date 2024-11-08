@@ -2,6 +2,12 @@
     "name": "node-red-ether",
     "description": "A Node-RED Project",
     "version": "0.0.1",
+    "private": false,
+    "contributors": [{
+        "name": "Mateus Macedo Dos Anjos",
+        "email": "macedodosanjosmateus@gmail.com",
+        "url": "https://www.linkedin.com/in/mateus-macedo-dos-anjos-6b4999143/"
+    }],
     "dependencies": {},
     "node-red": {
         "settings": {
