@@ -7,6 +7,30 @@
         "info": ""
     },
     {
+        "id": "b9b72b00b40ab1b2",
+        "type": "tab",
+        "label": "Flow 2",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "fddfdd43c6a7916d",
+        "type": "tab",
+        "label": "Flow 3",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "a2d3534f3c54d21f",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
         "id": "4c258dbac246732c",
         "type": "inject",
         "z": "f6f2187d.f17ca8",
@@ -50,5 +74,373 @@
         "x": 420,
         "y": 100,
         "wires": []
+    },
+    {
+        "id": "retry_flow",
+        "type": "function",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Retry com Backoff",
+        "func": "let retries = msg.retries || 0;\nlet delay = Math.pow(2, retries) * 1000; // 1s, 2s, 4s...\n\nif (retries < 5) {\n    msg.retries = retries + 1;\n    setTimeout(() => {\n        node.send(msg);\n    }, delay);\n} else {\n    msg.payload = {error: \"Max retries reached\"};\n    node.error(\"Max retries reached\", msg);\n}",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 90,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "http_request",
+        "type": "http request",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Serviço Externo",
+        "method": "GET",
+        "ret": "txt",
+        "url": "https://api.exemplo.com/endpoint",
+        "tls": "",
+        "x": 160,
+        "y": 90,
+        "wires": [
+            [
+                "retry_flow"
+            ]
+        ]
+    },
+    {
+        "id": "check_cache",
+        "type": "function",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Verificar Cache",
+        "func": "const cacheKey = msg.topic;\nconst cachedValue = flow.get(cacheKey);\n\nif (cachedValue) {\n    msg.payload = cachedValue;\n    msg.cached = true;\n    return [msg, null];\n} else {\n    return [null, msg];\n}",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 140,
+        "y": 240,
+        "wires": [
+            [
+                "5c4595bcfba0480c"
+            ],
+            [
+                "http_request_cache"
+            ]
+        ]
+    },
+    {
+        "id": "store_cache",
+        "type": "function",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Armazenar em Cache",
+        "func": "const cacheKey = msg.topic;\nflow.set(cacheKey, msg.payload);\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 310,
+        "wires": [
+            [
+                "5c4595bcfba0480c"
+            ]
+        ]
+    },
+    {
+        "id": "http_request_cache",
+        "type": "http request",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Serviço Externo",
+        "method": "GET",
+        "ret": "txt",
+        "url": "https://api.exemplo.com/endpoint",
+        "tls": "",
+        "x": 260,
+        "y": 310,
+        "wires": [
+            [
+                "store_cache"
+            ]
+        ]
+    },
+    {
+        "id": "5c4595bcfba0480c",
+        "type": "debug",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Output",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 670,
+        "y": 230,
+        "wires": []
+    },
+    {
+        "id": "circuit_breaker",
+        "type": "function",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Circuit Breaker",
+        "func": "let failures = context.get('failures') || 0;\nconst maxFailures = 3;\nconst resetTimeout = 60000; // 1 minuto\n\nif (msg.payload.error) {\n    failures += 1;\n    context.set('failures', failures);\n\n    if (failures >= maxFailures) {\n        context.set('circuit_open', true);\n        node.status({fill: \"red\", shape: \"ring\", text: \"circuito aberto\"});\n        setTimeout(() => context.set('circuit_open', false), resetTimeout);\n    }\n    return null;\n} else {\n    context.set('failures', 0);\n    node.status({});\n    return msg;\n}",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 370,
+        "y": 490,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "8050405a4e9c1b92",
+        "type": "http request",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Serviço Externo",
+        "method": "GET",
+        "ret": "txt",
+        "url": "https://api.exemplo.com/endpoint",
+        "tls": "",
+        "x": 910,
+        "y": 420,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "http_request_env",
+        "type": "http request",
+        "z": "b9b72b00b40ab1b2",
+        "name": "Serviço Externo Seguro",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "${API_URL}",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 440,
+        "y": 590,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "12464b51c8f19546",
+        "type": "delay",
+        "z": "b9b72b00b40ab1b2",
+        "name": "",
+        "pauseType": "rate",
+        "timeout": "5",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 700,
+        "y": 420,
+        "wires": [
+            [
+                "8050405a4e9c1b92"
+            ]
+        ]
+    },
+    {
+        "id": "9da1e5ef4cd6d3c8",
+        "type": "http in",
+        "z": "fddfdd43c6a7916d",
+        "name": "",
+        "url": "/form",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 320,
+        "y": 200,
+        "wires": [
+            [
+                "cdbcdfd1bac7a96d"
+            ]
+        ]
+    },
+    {
+        "id": "cdbcdfd1bac7a96d",
+        "type": "template",
+        "z": "fddfdd43c6a7916d",
+        "name": "Form",
+        "field": "payload",
+        "fieldType": "msg",
+        "format": "html",
+        "syntax": "mustache",
+        "template": "<!DOCTYPE html>\n<html>\n\n<head>\n    <title>Form Controls Example</title>\n</head>\n\n<body>\n    <h2>Form Controls Example</h2>\n    <form action=\"/api/submit\" method=\"post\">\n        <label for=\"name\">Name:</label>\n        <input type=\"text\" id=\"name\" name=\"name\"><br><br>\n\n        <label for=\"email\">Email:</label>\n        <input type=\"email\" id=\"email\" name=\"email\"><br><br>\n\n        <label for=\"age\">Age:</label>\n        <input type=\"number\" id=\"age\" name=\"age\"><br><br>\n\n        <label for=\"gender\">Gender:</label>\n        <select id=\"gender\" name=\"gender\">\n            <option value=\"male\">Male</option>\n            <option value=\"female\">Female</option>\n            <option value=\"other\">Other</option>\n        </select><br><br>\n\n        <label for=\"message\">Message:</label><br>\n        <textarea id=\"message\" name=\"message\" rows=\"4\" cols=\"50\"></textarea><br><br>\n\n        <input type=\"checkbox\" id=\"subscribe\" name=\"subscribe\" value=\"yes\">\n        <label for=\"subscribe\">Subscribe to our newsletter</label><br><br>\n\n        <input type=\"radio\" id=\"payment1\" name=\"payment\" value=\"credit\">\n        <label for=\"payment1\">Credit Card</label><br>\n        <input type=\"radio\" id=\"payment2\" name=\"payment\" value=\"paypal\">\n        <label for=\"payment2\">PayPal</label><br><br>\n\n        <input type=\"submit\" value=\"Submit\">\n    </form>\n</body>\n\n</html>",
+        "output": "str",
+        "x": 500,
+        "y": 200,
+        "wires": [
+            [
+                "49734fa8dc05f482"
+            ]
+        ]
+    },
+    {
+        "id": "49734fa8dc05f482",
+        "type": "http response",
+        "z": "fddfdd43c6a7916d",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 680,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "c9a22c34f56b56ed",
+        "type": "http in",
+        "z": "fddfdd43c6a7916d",
+        "name": "",
+        "url": "/submit",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 330,
+        "y": 300,
+        "wires": [
+            [
+                "0682bb59cac23483",
+                "bb0d083b56e97fdd"
+            ]
+        ]
+    },
+    {
+        "id": "d7741cd7b62cb267",
+        "type": "http response",
+        "z": "fddfdd43c6a7916d",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 740,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "0682bb59cac23483",
+        "type": "template",
+        "z": "fddfdd43c6a7916d",
+        "name": "",
+        "field": "payload",
+        "fieldType": "msg",
+        "format": "handlebars",
+        "syntax": "mustache",
+        "template": "{{payload}}",
+        "output": "str",
+        "x": 550,
+        "y": 300,
+        "wires": [
+            [
+                "d7741cd7b62cb267"
+            ]
+        ]
+    },
+    {
+        "id": "bb0d083b56e97fdd",
+        "type": "debug",
+        "z": "fddfdd43c6a7916d",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 550,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "3b69be85dc2f9a4f",
+        "type": "inject",
+        "z": "a2d3534f3c54d21f",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"imovel\":{\"id\":\"12345\",\"descricao\":\"Apartamento espaçoso com 3 quartos, próximo ao centro\",\"tipo\":\"Apartamento\",\"status\":\"Disponível\",\"dataCadastro\":\"2024-11-08T00:00:00Z\",\"valorVenda\":350000,\"valorAluguel\":\"1500\",\"areaTotal\":\"120\",\"areaUtil\":110,\"anoConstrucao\":2015,\"numeroQuartos\":3,\"numeroBanheiros\":2,\"vagasGaragem\":1,\"caracteristicas\":[\"Churrasqueira\",\"Piscina\",\"Playground\",\"Academia\"],\"endereco\":{\"logradouro\":\"Rua das Flores\",\"numero\":\"123\",\"complemento\":\"Apto 45\",\"bairro\":\"Centro\",\"cidade\":\"São Paulo\",\"estado\":\"SP\",\"cep\":\"01001-000\",\"pais\":\"Brasil\"},\"geolocalizacao\":{\"latitude\":-23.55052,\"longitude\":-46.633308},\"proprietario\":{\"id\":\"56789\",\"nome\":\"João da Silva\",\"cpf\":\"123.456.789-00\",\"telefone\":\"+55 11 98765-4321\",\"email\":\"joao.silva@email.com\",\"endereco\":{\"logradouro\":\"Rua da Independência\",\"numero\":\"456\",\"complemento\":\"Casa\",\"bairro\":\"Liberdade\",\"cidade\":\"São Paulo\",\"estado\":\"SP\",\"cep\":\"01501-000\",\"pais\":\"Brasil\"}},\"documentacao\":{\"matricula\":\"987654321\",\"registro\":\"123456\",\"cartorio\":\"Cartório de Registro de Imóveis de São Paulo\"},\"infraestrutura\":{\"elevador\":true,\"portaria\":\"24 horas\",\"numeroAndares\":10,\"andar\":4,\"permitidoAnimais\":true},\"condominio\":{\"nome\":\"Residencial Jardim das Flores\",\"valorMensal\":400,\"codigo\":\"COND1234\"},\"observacoes\":\"Imóvel bem iluminado, com vista panorâmica para o centro da cidade. Aceita financiamento.\",\"fotos\":[{\"url\":\"https://exemplo.com/foto1.jpg\",\"descricao\":\"Fachada do prédio\"},{\"url\":\"https://exemplo.com/foto2.jpg\",\"descricao\":\"Sala de estar\"}],\"historico\":[{\"data\":\"2024-01-01T00:00:00Z\",\"evento\":\"Imóvel cadastrado\",\"observacoes\":\"\"},{\"data\":\"2024-05-15T00:00:00Z\",\"evento\":\"Imóvel alugado\",\"observacoes\":\"Contrato de 12 meses\"}]}}",
+        "payloadType": "json",
+        "x": 240,
+        "y": 220,
+        "wires": [
+            [
+                "7fb31f93b772ee2a"
+            ]
+        ]
+    },
+    {
+        "id": "5f4d96dc6a9cf889",
+        "type": "debug",
+        "z": "a2d3534f3c54d21f",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 835,
+        "y": 210,
+        "wires": []
+    },
+    {
+        "id": "7fb31f93b772ee2a",
+        "type": "json-schema",
+        "z": "a2d3534f3c54d21f",
+        "name": "",
+        "func": "{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"type\":\"object\",\"properties\":{\"imovel\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"descricao\":{\"type\":\"string\"},\"tipo\":{\"type\":\"string\"},\"status\":{\"type\":\"string\"},\"dataCadastro\":{\"type\":\"string\"},\"valorVenda\":{\"type\":\"number\"},\"valorAluguel\":{\"type\":\"number\"},\"areaTotal\":{\"type\":\"integer\"},\"areaUtil\":{\"type\":\"integer\"},\"anoConstrucao\":{\"type\":\"integer\"},\"numeroQuartos\":{\"type\":\"integer\"},\"numeroBanheiros\":{\"type\":\"integer\"},\"vagasGaragem\":{\"type\":\"integer\"},\"caracteristicas\":{\"type\":\"array\",\"items\":[{\"type\":\"string\"},{\"type\":\"string\"},{\"type\":\"string\"},{\"type\":\"string\"}]},\"endereco\":{\"type\":\"object\",\"properties\":{\"logradouro\":{\"type\":\"string\"},\"numero\":{\"type\":\"string\"},\"complemento\":{\"type\":\"string\"},\"bairro\":{\"type\":\"string\"},\"cidade\":{\"type\":\"string\"},\"estado\":{\"type\":\"string\"},\"cep\":{\"type\":\"string\"},\"pais\":{\"type\":\"string\"}},\"required\":[\"logradouro\",\"numero\",\"complemento\",\"bairro\",\"cidade\",\"estado\",\"cep\",\"pais\"]},\"geolocalizacao\":{\"type\":\"object\",\"properties\":{\"latitude\":{\"type\":\"number\"},\"longitude\":{\"type\":\"number\"}},\"required\":[\"latitude\",\"longitude\"]},\"proprietario\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"nome\":{\"type\":\"string\"},\"cpf\":{\"type\":\"string\"},\"telefone\":{\"type\":\"string\"},\"email\":{\"type\":\"string\"},\"endereco\":{\"type\":\"object\",\"properties\":{\"logradouro\":{\"type\":\"string\"},\"numero\":{\"type\":\"string\"},\"complemento\":{\"type\":\"string\"},\"bairro\":{\"type\":\"string\"},\"cidade\":{\"type\":\"string\"},\"estado\":{\"type\":\"string\"},\"cep\":{\"type\":\"string\"},\"pais\":{\"type\":\"string\"}},\"required\":[\"logradouro\",\"numero\",\"complemento\",\"bairro\",\"cidade\",\"estado\",\"cep\",\"pais\"]}},\"required\":[\"id\",\"nome\",\"cpf\",\"telefone\",\"email\",\"endereco\"]},\"documentacao\":{\"type\":\"object\",\"properties\":{\"matricula\":{\"type\":\"string\"},\"registro\":{\"type\":\"string\"},\"cartorio\":{\"type\":\"string\"}},\"required\":[\"matricula\",\"registro\",\"cartorio\"]},\"infraestrutura\":{\"type\":\"object\",\"properties\":{\"elevador\":{\"type\":\"boolean\"},\"portaria\":{\"type\":\"string\"},\"numeroAndares\":{\"type\":\"integer\"},\"andar\":{\"type\":\"integer\"},\"permitidoAnimais\":{\"type\":\"boolean\"}},\"required\":[\"elevador\",\"portaria\",\"numeroAndares\",\"andar\",\"permitidoAnimais\"]},\"condominio\":{\"type\":\"object\",\"properties\":{\"nome\":{\"type\":\"string\"},\"valorMensal\":{\"type\":\"number\"},\"codigo\":{\"type\":\"string\"}},\"required\":[\"nome\",\"valorMensal\",\"codigo\"]},\"observacoes\":{\"type\":\"string\"},\"fotos\":{\"type\":\"array\",\"items\":[{\"type\":\"object\",\"properties\":{\"url\":{\"type\":\"string\"},\"descricao\":{\"type\":\"string\"}},\"required\":[\"url\",\"descricao\"]},{\"type\":\"object\",\"properties\":{\"url\":{\"type\":\"string\"},\"descricao\":{\"type\":\"string\"}},\"required\":[\"url\",\"descricao\"]}]},\"historico\":{\"type\":\"array\",\"items\":[{\"type\":\"object\",\"properties\":{\"data\":{\"type\":\"string\"},\"evento\":{\"type\":\"string\"},\"observacoes\":{\"type\":\"string\"}},\"required\":[\"data\",\"evento\",\"observacoes\"]},{\"type\":\"object\",\"properties\":{\"data\":{\"type\":\"string\"},\"evento\":{\"type\":\"string\"},\"observacoes\":{\"type\":\"string\"}},\"required\":[\"data\",\"evento\",\"observacoes\"]}]}},\"required\":[\"id\",\"descricao\",\"tipo\",\"status\",\"dataCadastro\",\"valorVenda\",\"valorAluguel\",\"areaTotal\",\"areaUtil\",\"anoConstrucao\",\"numeroQuartos\",\"numeroBanheiros\",\"vagasGaragem\",\"caracteristicas\",\"endereco\",\"geolocalizacao\",\"proprietario\",\"documentacao\",\"infraestrutura\",\"condominio\",\"observacoes\",\"fotos\",\"historico\"]}},\"required\":[\"imovel\"]}",
+        "allErrors": true,
+        "useDefaults": true,
+        "coerceTypes": false,
+        "removeAdditional": "all",
+        "messages": true,
+        "x": 565,
+        "y": 220,
+        "wires": [
+            [
+                "5f4d96dc6a9cf889"
+            ]
+        ]
     }
 ]
